@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { connectDB } = require('./db');
 const testRoutes = require('./routes/test');
 const adminRoutes = require('./routes/admin');
 const categoriesRoutes = require('./routes/categories');
@@ -32,6 +33,17 @@ app.set('trust proxy', 1);
 
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
 app.use(express.json());
+
+// Ensure a DB connection exists before handling any route. In serverless
+// environments this will reuse the cached connection from ./db.
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.use('/api/test', testRoutes);
 app.use('/api/admin', adminRoutes);
