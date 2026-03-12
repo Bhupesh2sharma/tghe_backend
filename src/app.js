@@ -53,6 +53,12 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Simple debug endpoint to verify that MONGODB_URI is visible to the server.
+// Hit /check-env in your browser or via curl; remove or protect this in production.
+app.get('/check-env', (req, res) => {
+  res.send(process.env.MONGODB_URI ? 'ENV OK' : 'ENV MISSING');
+});
+
 app.use(errorHandler);
 
 module.exports = app;
