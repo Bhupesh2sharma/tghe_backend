@@ -25,6 +25,11 @@ const ALLOWED_ORIGINS = [
 ];
 
 const app = express();
+
+// Behind Vercel/other proxies, trust the first proxy so that
+// express-rate-limit and other middleware can safely use X-Forwarded-For.
+app.set('trust proxy', 1);
+
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
 app.use(express.json());
 
