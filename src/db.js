@@ -1,11 +1,10 @@
 const mongoose = require('mongoose');
 
 async function connectDB() {
-  // Direct MongoDB Atlas URI (from .env). For production, prefer using environment variables.
-  const uri = 'mongodb+srv://tghe_db_user:YOPbl9Gr4qoFKciu@waglogy.szgvjai.mongodb.net/wgl_tghe_db?appName=waglogy';
+  // Use env var in all environments; fall back to local only for development
+  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/tghe';
 
   try {
-    console.log('Connecting to MongoDB with URI prefix:', uri.slice(0, 40));
     await mongoose.connect(uri);
     console.log('MongoDB connected');
   } catch (err) {
