@@ -1,0 +1,658 @@
+{
+  "info": {
+    "name": "tghe-backend",
+    "description": "**Setup:** Set `baseUrl` (default http://localhost:3000). Run **Admin → Login** to set `token`.\n\n**APIs:**\n- **Health** — GET /health\n- **Test** — GET /api/test\n- **Admin** — POST /api/admin/register, POST /api/admin/login\n- **Analytics** — GET /api/analytics (auth)\n- **Notifications** — GET, GET /unread-count, PATCH /:id/read, PATCH /read-all (auth)\n- **Upload** — POST /api/upload/image (auth, multipart)\n- **Newsletter** — POST /api/newsletter (subscribe), GET /api/newsletter (list, auth)\n- **Enquiries** — POST /api/enquiries (submit), GET /api/enquiries (list, auth)\n- **Contacts** — POST /api/contacts (submit), GET /api/contacts (list, auth)\n- **Categories** — GET, GET/:id, POST, PATCH/:id, DELETE/:id (auth for write)\n- **Destinations** — GET, GET/:id, POST, PATCH/:id, DELETE/:id (auth for write)\n- **Packages** — GET, GET/:id, POST, PATCH/:id, PATCH/:id/categories-destinations, DELETE/:id (auth for write)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "token", "value": "", "description": "Set by Login; use for admin-only requests" },
+    { "key": "categoryId", "value": "", "description": "MongoDB _id from Categories List or Create" },
+    { "key": "destinationId", "value": "", "description": "MongoDB _id from Destinations List or Create" },
+    { "key": "packageId", "value": "", "description": "MongoDB _id from Packages List or Create (Step 1)" },
+    { "key": "itineraryId", "value": "", "description": "MongoDB _id from Packages → Itinerary List" },
+    { "key": "itemId", "value": "", "description": "MongoDB _id from Packages → Inclusion & Exclusion List" },
+    { "key": "notificationId", "value": "", "description": "MongoDB _id from Notifications List" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/health",
+        "description": "Health check endpoint."
+      }
+    },
+    {
+      "name": "Test",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/test",
+        "description": "Test route; returns success and timestamp."
+      }
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Secret123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/register",
+            "description": "Register a new admin. Password: min 8 chars, at least one letter and one number."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.data && json.data.token) {",
+                  "        pm.collectionVariables.set('token', json.data.token);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Secret123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/login",
+            "description": "Login. Saves token to collection variable for use in authenticated requests."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Dashboard counts",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/analytics",
+            "description": "Simple analytics (admin). Returns counts: categories, destinations, packages, enquiries, contacts, newsletter."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/notifications",
+            "description": "List notifications (admin). Add ?read=false for unread only, ?limit=50 (max 100)."
+          }
+        },
+        {
+          "name": "Unread count",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/notifications/unread-count",
+            "description": "Get unread count for badge (admin). Returns { data: { count } }."
+          }
+        },
+        {
+          "name": "Mark all read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/notifications/read-all",
+            "description": "Mark all notifications as read (admin)."
+          }
+        },
+        {
+          "name": "Mark one read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/notifications/{{notificationId}}/read",
+            "description": "Mark one notification as read (admin). Set notificationId."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload",
+      "item": [
+        {
+          "name": "Upload Image (Cloudinary)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": [], "description": "Image file (JPEG, PNG, GIF, WebP; max 5MB)" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/upload/image",
+            "description": "Upload image to Cloudinary. Field name must be 'image'. Returns { data: { url, publicId } }. Use url in category/destination/package image field."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Newsletter",
+      "item": [
+        {
+          "name": "Subscribe",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": "{{baseUrl}}/api/newsletter",
+            "description": "Subscribe to newsletter (public). Body: { \"email\" }. Returns success and email; already subscribed returns same success message."
+          }
+        },
+        {
+          "name": "List (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/newsletter",
+            "description": "List all newsletter subscribers (admin). Returns array of { email, createdAt }."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Enquiries",
+      "item": [
+        {
+          "name": "Submit (Client)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"pax\": 4,\n  \"phone\": \"+91 9876543210\",\n  \"email\": \"john@example.com\",\n  \"packageName\": \"Sikkim Explorer\",\n  \"tourDate\": \"2025-04-15\",\n  \"message\": \"Interested in 3D/2N package.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/enquiries",
+            "description": "Submit enquiry (public). Required: name, email. Optional: pax, phone, packageId, packageName, tourDate (ISO date), message."
+          }
+        },
+        {
+          "name": "List (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/enquiries",
+            "description": "Get all enquiries (admin). Returns list with name, pax, phone, email, packageId, packageName, tourDate, message, createdAt (ENQ DATE)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Contacts",
+      "item": [
+        {
+          "name": "Submit (Client)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Smith\",\n  \"phone\": \"+91 9123456789\",\n  \"email\": \"jane@example.com\",\n  \"message\": \"Would like to know more about your tours.\",\n  \"noOfAdults\": 2,\n  \"noOfChildren\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/contacts",
+            "description": "Submit contact form (public). Required: name, phone, email. Optional: message, noOfAdults, noOfChildren."
+          }
+        },
+        {
+          "name": "List (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/contacts",
+            "description": "Get all contact form submissions (admin). Returns: name, phone, email, message, noOfAdults, noOfChildren, createdAt (ENQ date)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/categories",
+            "description": "List all categories."
+          }
+        },
+        {
+          "name": "Get One",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/categories/{{categoryId}}",
+            "description": "Get one category. Set collection var categoryId or replace in URL."
+          }
+        },
+        {
+          "name": "Create",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Adventure\",\n  \"title\": \"Adventure Tours\",\n  \"image\": \"\"\n}"
+            },
+            "url": "{{baseUrl}}/api/categories",
+            "description": "Create category (admin)."
+          }
+        },
+        {
+          "name": "Update",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Adventure\",\n  \"title\": \"Adventure Tours Updated\",\n  \"image\": \"https://example.com/image.jpg\"\n}"
+            },
+            "url": "{{baseUrl}}/api/categories/{{categoryId}}",
+            "description": "Update category (admin). Partial update: send only fields to change. Set categoryId."
+          }
+        },
+        {
+          "name": "Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/categories/{{categoryId}}",
+            "description": "Delete category (admin). Set categoryId."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Destinations",
+      "item": [
+        {
+          "name": "List",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/destinations",
+            "description": "List all destinations."
+          }
+        },
+        {
+          "name": "Get One",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/destinations/{{destinationId}}",
+            "description": "Get one destination. Set collection var destinationId or replace in URL."
+          }
+        },
+        {
+          "name": "Create",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sikkim\",\n  \"details\": \"\",\n  \"image\": \"\"\n}"
+            },
+            "url": "{{baseUrl}}/api/destinations",
+            "description": "Create destination (admin)."
+          }
+        },
+        {
+          "name": "Update",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sikkim\",\n  \"details\": \"Updated details\",\n  \"image\": \"https://example.com/image.jpg\"\n}"
+            },
+            "url": "{{baseUrl}}/api/destinations/{{destinationId}}",
+            "description": "Update destination (admin). Partial update: send only fields to change. Set destinationId."
+          }
+        },
+        {
+          "name": "Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/destinations/{{destinationId}}",
+            "description": "Delete destination (admin). Set destinationId."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Packages",
+      "item": [
+        {
+          "name": "List",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/packages",
+            "description": "List all packages. Add query ?categoryId=... or ?destinationId=... to filter."
+          }
+        },
+        {
+          "name": "List by category",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/packages?categoryId={{categoryId}}",
+            "description": "Filter packages by category. Set categoryId in collection vars."
+          }
+        },
+        {
+          "name": "List by destination",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/packages?destinationId={{destinationId}}",
+            "description": "Filter packages by destination. Set destinationId in collection vars."
+          }
+        },
+        {
+          "name": "Get One",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/packages/{{packageId}}",
+            "description": "Get one package with categories, destinations, itinerary, paymentRefundPolicy, inclusions, exclusions, termsCondition."
+          }
+        },
+        {
+          "name": "Create (Step 1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sikkim Explorer\",\n  \"title\": \"3D/2N Sikkim\",\n  \"duration\": \"3D/2N\",\n  \"description\": \"Explore Sikkim.\",\n  \"image\": \"\",\n  \"images\": []\n}"
+            },
+            "url": "{{baseUrl}}/api/packages",
+            "description": "Create package without categories/destinations (admin). Optional image + images (up to 20). Copy package _id for Step 2."
+          }
+        },
+        {
+          "name": "Update",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sikkim Explorer\",\n  \"title\": \"3D/2N Sikkim\",\n  \"duration\": \"3D/2N\",\n  \"description\": \"Updated description.\",\n  \"image\": \"\",\n  \"images\": []\n}"
+            },
+            "url": "{{baseUrl}}/api/packages/{{packageId}}",
+            "description": "Update package fields (admin). Partial update: send only fields to change. Optional image/images. Does not change categories/destinations (use Assign for that). Set packageId."
+          }
+        },
+        {
+          "name": "Assign Categories & Destinations (Step 2)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryIds\": [\"category_id_1\", \"category_id_2\"],\n  \"destinationIds\": [\"destination_id_1\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/packages/{{packageId}}/categories-destinations",
+            "description": "Assign categories and destinations to package (admin). Replace IDs with real category/destination _ids. Set packageId in URL."
+          }
+        },
+        {
+          "name": "Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/packages/{{packageId}}",
+            "description": "Delete package (admin). Also deletes linked itinerary, payment-refund, inclusion-exclusion, terms. Set packageId."
+          }
+        },
+        {
+          "name": "Itinerary",
+          "item": [
+            {
+              "name": "List",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/itinerary",
+                "description": "List itinerary items for package (sorted by day)."
+              }
+            },
+            {
+              "name": "Create",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"dayNumber\": 1,\n  \"title\": \"ARRIVAL IN GANGTOK\",\n  \"description\": \"Arrive at Bagdogra/NJP. Transfer to Gangtok. Check in at hotel.\"\n}"
+                },
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/itinerary",
+                "description": "Add itinerary day (admin). Set packageId."
+              }
+            },
+            {
+              "name": "Update",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated day title\",\n  \"description\": \"Updated description\"\n}"
+                },
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/itinerary/{{itineraryId}}",
+                "description": "Update itinerary item (admin). Set packageId and itineraryId."
+              }
+            },
+            {
+              "name": "Delete",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/itinerary/{{itineraryId}}",
+                "description": "Delete itinerary item (admin). Set packageId and itineraryId."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment & Refund Policy",
+          "item": [
+            {
+              "name": "Get",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/payment-refund",
+                "description": "Get Cancellation & Refund Policy for package."
+              }
+            },
+            {
+              "name": "Create or Update",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"content\": \"Cancellation and refund policy text here.\"\n}"
+                },
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/payment-refund",
+                "description": "Create or update Payment & Refund Policy (admin). Set packageId."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inclusion & Exclusion",
+          "item": [
+            {
+              "name": "List",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/inclusion-exclusion",
+                "description": "Get inclusions and exclusions for package. Returns { data: { inclusions, exclusions } }."
+              }
+            },
+            {
+              "name": "Create",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"inclusion\",\n  \"text\": \"Accommodation on Deluxe Rooms\",\n  \"order\": 0\n}"
+                },
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/inclusion-exclusion",
+                "description": "Add inclusion or exclusion item (admin). type: inclusion | exclusion. Set packageId."
+              }
+            },
+            {
+              "name": "Update",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"text\": \"Updated item text\"\n}"
+                },
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/inclusion-exclusion/{{itemId}}",
+                "description": "Update inclusion/exclusion item (admin). Set packageId and itemId."
+              }
+            },
+            {
+              "name": "Delete",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/inclusion-exclusion/{{itemId}}",
+                "description": "Delete inclusion/exclusion item (admin). Set packageId and itemId."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Terms & Conditions",
+          "item": [
+            {
+              "name": "Get",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/terms",
+                "description": "Get Terms & Conditions for package."
+              }
+            },
+            {
+              "name": "Create or Update",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"content\": \"Terms and conditions text here.\"\n}"
+                },
+                "url": "{{baseUrl}}/api/packages/{{packageId}}/terms",
+                "description": "Create or update Terms & Conditions (admin). Set packageId."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
