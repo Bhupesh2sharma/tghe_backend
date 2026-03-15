@@ -6,15 +6,23 @@ const { ApiError } = require('../utils/errors');
 
 const router = express.Router();
 
-const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_MIMES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/heic',
+];
+const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_SIZE },
   fileFilter: (req, file, cb) => {
-    if (!ALLOWED_MIMES.includes(file.mimetype)) {
-      return cb(new ApiError(400, 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP'));
+    const mime = (file.mimetype || '').toLowerCase();
+    if (!ALLOWED_MIMES.includes(mime)) {
+      return cb(new ApiError(400, 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP, HEIC. Got: ' + (file.mimetype || 'unknown')));
     }
     cb(null, true);
   },
