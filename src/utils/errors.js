@@ -7,6 +7,13 @@ class ApiError extends Error {
 }
 
 function errorHandler(err, req, res, next) {
+  // Ensure CORS header is set on error responses (in case cors middleware didn't run)
+  const origin = req.get('origin');
+  if (origin && (origin.includes('localhost') || origin.includes('tghe-frontend') || origin.includes('tghe.in') || origin.endsWith('.vercel.app'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
       success: false,

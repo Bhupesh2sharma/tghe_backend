@@ -24,7 +24,20 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
   'https://tghe-frontend.vercel.app',
+  'https://tghe.in',
+  'https://www.tghe.in',
+  'http://tghe.in',
+  'http://www.tghe.in',
 ];
+
+// Allow production frontend, tghe.in, and any Vercel preview (e.g. tghe-frontend-xxx.vercel.app)
+function corsOrigin(origin, callback) {
+  if (!origin) return callback(null, true); // same-origin or non-browser
+  if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+  if (origin.endsWith('.vercel.app') && origin.includes('tghe-frontend')) return callback(null, true);
+  if (origin.includes('tghe.in')) return callback(null, true); // tghe.in and any subdomain
+  callback(new Error('Not allowed by CORS'));
+}
 
 const app = express();
 
@@ -32,7 +45,7 @@ const app = express();
 // express-rate-limit and other middleware can safely use X-Forwarded-For.
 app.set('trust proxy', 1);
 
-app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
 
 // Ensure a DB connection exists before handling any route. In serverless
